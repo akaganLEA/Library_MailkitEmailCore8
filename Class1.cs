@@ -1,6 +1,10 @@
 ﻿using MimeKit;
 using MailKit.Net.Smtp;
 using System;
+using System.Net.Mail;
+//2025-1-23: added encryption parameter to route to correct email server/barracuda
+//2025-1-23: added debug parameter to send to debug email address
+//2025-1-23: added smtpException to throw exception if email fails to send
 
 namespace libMailkitEmail
 {
@@ -8,6 +12,40 @@ namespace libMailkitEmail
     {
         public static void sendMail(string emailServer, int emailPort, string emailCredName, string emailCredPwd, bool emailEnableSSL, string emailTo, string emailCC, string emailBCC, string emailFrom, string emailReplyTo, string emailSubject, string emailBody, string sAttachment, bool emailDebug, string debugEmailTo = "akagan@leadingedgeadmin.com")
         {
+            string smtpServer = emailServer;
+            int smtpPort = emailPort;
+            string smtpUser = emailCredName;
+            string smtpPwd = emailCredPwd;
+            bool smtpSSL = emailEnableSSL;
+            string smtpSubject = emailTo;
+            string smtpBody = emailBody;
+            string smtpAttachment = sAttachment;
+            bool smtpDebug = emailDebug;
+            string smtpDebugEmail = debugEmailTo;
+            string smtpFrom = emailFrom;
+            string smtpReplyTo = emailReplyTo;
+            string smtpCC = emailCC;
+            string smtpBCC = emailBCC;
+            if (emailSubject.ToLower().Contains("[encrypt]"))
+            {
+                smtpServer = "smtp.outlook.com";
+                smtpPort = 587;
+                smtpUser = "eservices@leadingedgeadmin.com";
+                smtpPwd = "Torn8o427#";
+                smtpSSL = false;
+                //remove "encrypt" from subject
+                emailSubject = emailSubject.Replace("[encrypt]", "");
+            }
+            else
+            {
+                smtpServer = "mail.smtp2go.com";
+                smtpPort = 2525;
+                smtpUser = "LEA-eservices";
+                smtpPwd = "MBHA2ai3u0xx1Mhd";
+                smtpSSL = false;
+            }
+
+
             MimeMessage msg = new MimeMessage();
             string tmpFromAdd;
             tmpFromAdd = emailCredName.Contains("@") ? emailCredName : string.Concat(emailCredName, "@leadingedgeadmin.com");
@@ -56,7 +94,7 @@ namespace libMailkitEmail
                 {
                     Console.WriteLine($"BCCerror: {ex.Message}");
                 }
-                msg.Bcc.Add(MailboxAddress.Parse("autonotifies@leadingedgeadmin.com"));
+                //msg.Bcc.Add(MailboxAddress.Parse("autonotifies@leadingedgeadmin.com")); <--2025-1-23: no longer adding to autonotifies mailbox
             }
             msg.Subject = $"{(emailDebug ? "DEBUG: " : "")}{emailSubject} for {DateTime.Today.ToShortDateString()}";
             BodyBuilder bdy = new BodyBuilder();
@@ -68,10 +106,10 @@ namespace libMailkitEmail
 
             try
             {
-                using (var smtp = new SmtpClient())
+                using (var smtp = new MailKit.Net.Smtp.SmtpClient())
                 {
-                    smtp.Connect(emailServer, emailPort, emailEnableSSL);
-                    smtp.Authenticate(emailCredName, emailCredPwd);
+                    smtp.Connect(smtpServer, smtpPort, smtpSSL);
+                    smtp.Authenticate(smtpUser, smtpPwd);
                     smtp.Send(msg);
                     smtp.Disconnect(true);
                     Console.WriteLine("Message sent");
